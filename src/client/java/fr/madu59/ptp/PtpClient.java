@@ -12,8 +12,6 @@ import org.lwjgl.glfw.GLFW;
 import fr.madu59.ptp.config.Option;
 import fr.madu59.ptp.config.SettingsManager;
 import fr.madu59.ptp.config.configScreen.PtpConfigScreen;
-import fr.madu59.ptp.HandshakeNetworking.HANDSHAKE_C2SPayload;
-import fr.madu59.ptp.HandshakeNetworking.HANDSHAKE_S2CPayload;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -21,8 +19,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -49,7 +45,6 @@ public class PtpClient implements ClientModInitializer {
 
     private static final Minecraft client = Minecraft.getInstance();
     public static final Logger LOGGER = LogManager.getLogger("ptpClient");
-    private static boolean serverHasMod = false;
     private static KeyMapping itemDropKey;
     private static KeyMapping toggleKey;
     private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("ptp", "ptp"));
@@ -60,28 +55,6 @@ public class PtpClient implements ClientModInitializer {
         PtpConfigScreen.registerCommand();
         registerKeyMappings();
 
-        // Reset handshake state on join
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            serverHasMod = false;
-
-            // Always enabled in singleplayer
-            if (client.hasSingleplayerServer()) {
-                serverHasMod = true;
-                return;
-            }
-
-            // Send handshake to server
-            ClientPlayNetworking.send(new HANDSHAKE_C2SPayload("Check if is installed on server"));
-            LOGGER.info("[PTP] Sending handshake to server...");
-        });
-
-        // Receive handshake reply
-        ClientPlayNetworking.registerGlobalReceiver(HANDSHAKE_S2CPayload.ID,
-            (payload, context) -> {
-                LOGGER.info("[PTP] Received handshake from server!");
-                serverHasMod = true;
-        });
-        
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             renderOverlay(context);
         });
@@ -336,11 +309,11 @@ public class PtpClient implements ClientModInitializer {
     }
 
     public static boolean isEnabled() {
-        return client.hasSingleplayerServer() || serverHasMod;
+        return true;
     }
 
     public static boolean isEnabled(ProjectileInfo projectileInfo) {
-        return client.hasSingleplayerServer() || serverHasMod || projectileInfo.bypassAntiCheat;
+        return true;
     }
 
     private static void registerKeyMappings() {
